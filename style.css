@@ -1,0 +1,218 @@
+let startTime = 0;
+let interval = null;
+let targetTime = 0;
+let running = false;
+let score = 0;
+let canStop = false;
+let currentTime = 0;
+let countdownActive = false;
+
+let bgMusic = new Audio("sounds/music.mp3");
+let beep = new Audio("sounds/beep.mp3");
+let winSound = new Audio("sounds/win.mp3");
+let loseSound = new Audio("sounds/lose.mp3");
+
+let historyList = [];
+
+function startGame() {
+    
+    resetGame(false);
+
+    if (running) return;
+
+    resetGame(false);
+
+    running = true;
+
+    document.getElementById("result").innerText = "";
+    document.getElementById("time").innerText = "0.00";
+
+    countdown();
+}
+
+function countdown() {
+    let count = 3;
+    canStop = false;
+    countdownActive = true;
+
+    function step() {
+        if (!countdownActive) return; // 🛑 ndalo nëse reset
+
+        document.getElementById("target").innerText = "⏳ " + count;
+
+        beep.currentTime = 0;
+        beep.play();
+
+        if (count > 1) {
+            count--;
+            setTimeout(step, 1000);
+        } else {
+            setTimeout(() => {
+                if (!countdownActive) return;
+                startCoreGame();
+            }, 1000);
+        }
+    }
+
+    step();
+}
+
+function startCoreGame() {
+    countdownActive = false;
+    running = true;
+    canStop = true;
+
+    targetTime = (Math.random() * 5 + 3);
+
+    document.getElementById("target").innerText =
+        "🎯 Kap: " + targetTime.toFixed(2) + " s";
+
+    startTime = Date.now();
+
+    bgMusic.loop = true;
+    bgMusic.volume = 0.3;
+    bgMusic.play();
+
+    clearInterval(interval);
+
+    interval = setInterval(() => {
+        if (!running) return;
+
+        currentTime = (Date.now() - startTime) / 1000;
+        document.getElementById("time").innerText = currentTime.toFixed(2);
+    }, 50);
+}
+
+function stopGame() {
+    if (!canStop || !running) return;
+
+    running = false;
+    canStop = false;
+
+    clearInterval(interval);
+    interval = null;
+
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
+
+    let finalTime = currentTime;
+    let difference = Math.abs(finalTime - targetTime);
+
+    let message = "";
+
+    // 🎯 SCORE SYSTEM
+    if (difference <= 0.10) {
+        message = "🏆 PERFECT!";
+        score += 3;
+        winSound.currentTime = 0;
+        winSound.play();
+    } 
+    else if (difference <= 0.30) {
+        message = "🟡 SHUMË AFËR!";
+        score += 1;
+        winSound.currentTime = 0;
+        winSound.play();
+    } 
+    else {
+        message = "❌ NUK E KAPE!";
+        loseSound.currentTime = 0;
+        loseSound.play();
+    }
+
+    // 🔄 Update score UI
+    document.getElementById("score").innerText = "🏆 Score: " + score;
+
+    // 📊 Show result
+    document.getElementById("result").innerText =
+        message +
+        "\n⏱ Ti: " + finalTime.toFixed(2) + " s" +
+        "\n🎯 Diferenca: " + difference.toFixed(2) + " s";
+
+    // 🎨 Flash effect
+    let container = document.querySelector(".container");
+    container.classList.remove("flash-green", "flash-red");
+
+    if (difference <= 0.30) {
+        container.classList.add("flash-green");
+    } else {
+        container.classList.add("flash-red");
+    }
+
+    // 📜 Leaderboard
+    addToLeaderboard(message, finalTime, targetTime);
+}
+
+function resetGame(full = true) {
+    // 🛑 ndal gjithçka
+    clearInterval(interval);
+    interval = null;
+
+    running = false;
+    canStop = false;
+
+    // 🔊 ndal audio
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
+
+    beep.pause();
+    beep.currentTime = 0;
+
+    winSound.pause();
+    winSound.currentTime = 0;
+
+    loseSound.pause();
+    loseSound.currentTime = 0;
+
+    // ⏱ reset variablat e kohës
+    startTime = 0;
+    currentTime = 0;
+    targetTime = 0;
+
+    // 🖥 UI reset
+    document.getElementById("time").innerText = "0.00";
+    document.getElementById("target").innerText = "--";
+    document.getElementById("result").innerText = "";
+
+    // 📊 vetëm në full reset
+    if (full) {
+        historyList = [];
+        document.getElementById("history").innerHTML = "";
+
+        score = 0;
+        document.getElementById("score").innerText = "🏆 Score: 0";
+    }
+
+    // 🎨 hiq efektet
+    let container = document.querySelector(".container");
+    container.classList.remove("flash-green", "flash-red");
+    countdownActive = false;
+}
+
+function addToLeaderboard(message, finalTime, targetTime) {
+    historyList.unshift({
+        msg: message,
+        time: finalTime.toFixed(2),
+        target: targetTime.toFixed(2)
+    });
+
+    if (historyList.length > 10) {
+        historyList.pop();
+    }
+
+    renderLeaderboard();
+}
+
+function renderLeaderboard() {
+    let history = document.getElementById("history");
+    history.innerHTML = "";
+
+    historyList.forEach((item, index) => {
+        let div = document.createElement("div");
+        div.className = "entry";
+        div.innerText =
+            (index + 1) + ". " +
+            item.msg +
+            " | " + item.time + "s (target " + item.target + ")";
+        history.appendChild(div);
+    });
+}
